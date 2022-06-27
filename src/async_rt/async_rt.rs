@@ -22,12 +22,17 @@ lazy_static::lazy_static! {
     static ref RT_CTX: Mutex<RuntimeContext> = Default::default();
 }
 
+fn current_pid() -> libc::pthread_t {
+    unsafe {libc::pthread_self()}
+    // thread_id::get()
+}
+
 pub(super) fn on_thread_start() {
-    println!("on_thread_start: pthread id [{:?}], thread id [{:?}]", thread_id::get(), std::thread::current().id());
+    println!("on_thread_start: pthread id [{:?}], thread id [{:?}]", current_pid(), std::thread::current().id());
 
     RT_CTX.lock().threads.push(RThread {
         thread: std::thread::current(),
-        os_id: thread_id::get(),
+        os_id: current_pid() ,
     });
 }
 

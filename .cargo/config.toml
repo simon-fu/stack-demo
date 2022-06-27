@@ -1,0 +1,3 @@
+[build]
+# from https://github.com/tokio-rs/console/tree/main/console-subscriber
+rustflags = ["--cfg", "tokio_unstable"]

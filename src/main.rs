@@ -3,7 +3,7 @@ mod async_rt;
 mod loop_test;
 
 
-use anyhow::{Result, Context};
+use anyhow::Result;
 use tracing_subscriber::EnvFilter;
 
 // #[tokio::main]
@@ -13,7 +13,7 @@ use tracing_subscriber::EnvFilter;
 // }
 
 fn main() -> Result<()> {
-    test_crash()?;
+    // test_crash()?;
     // if test_crash().is_ok() {
     //     return Ok(())
     // }
@@ -79,42 +79,42 @@ fn init_log() {
 
 }
 
-fn test_crash() -> Result<()> {
-    let filename = "/tmp/demo.dmp";
-    make_minidump_macos(filename)?;
-    println!("wrote minidump [{}]", filename);
+// fn test_crash() -> Result<()> {
+//     let filename = "/tmp/demo.dmp";
+//     make_minidump_macos(filename)?;
+//     println!("wrote minidump [{}]", filename);
 
-    // #[cfg(any(target_os = "linux", target_os = "android"))]
-    // unsafe {
-    //     let mut context = std::mem::zeroed();
-    //     crash_context::crash_context_getcontext(&mut context);
-    // }
+//     // #[cfg(any(target_os = "linux", target_os = "android"))]
+//     // unsafe {
+//     //     let mut context = std::mem::zeroed();
+//     //     crash_context::crash_context_getcontext(&mut context);
+//     // }
 
-    Ok(())
-}
+//     Ok(())
+// }
 
-fn make_minidump_macos(filename: &str) -> Result<()> {
-    let cc = unsafe {
-        crash_context::CrashContext {
-            task: libc::mach_task_self(),
-            thread: libc::mach_thread_self(),
-            handler_thread: 0, 
-            // handler_thread: libc::mach_thread_self(),
-            // handler_thread: mach2::port::MACH_PORT_NULL,
-            exception: None,
-        }
-    };
+// fn make_minidump_macos(filename: &str) -> Result<()> {
+//     let cc = unsafe {
+//         crash_context::CrashContext {
+//             task: libc::mach_task_self(),
+//             thread: libc::mach_thread_self(),
+//             handler_thread: 0, 
+//             // handler_thread: libc::mach_thread_self(),
+//             // handler_thread: mach2::port::MACH_PORT_NULL,
+//             exception: None,
+//         }
+//     };
 
-    let mut writer = minidump_writer::minidump_writer::MinidumpWriter::new(cc);
+//     let mut writer = minidump_writer::minidump_writer::MinidumpWriter::new(cc);
 
-    let mut minidump_file = std::fs::File::create(filename)
-    .with_context(|| format!("failed to create file [{}]",filename))?;
+//     let mut minidump_file = std::fs::File::create(filename)
+//     .with_context(|| format!("failed to create file [{}]",filename))?;
 
-    writer.dump(&mut minidump_file)
-    .with_context(|| format!("failed to write file [{}]",filename))?;
+//     writer.dump(&mut minidump_file)
+//     .with_context(|| format!("failed to write file [{}]",filename))?;
 
-    Ok(())
-}
+//     Ok(())
+// }
 
 
 

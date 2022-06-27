@@ -24,6 +24,7 @@ fn run_with_runtime(is_mt: bool) -> Result<()> {
     } else {
         async_rt::run_single_thread(run_async())??;
     }
+
     Ok(())
 }
 
@@ -39,12 +40,22 @@ enum KickType {
 
 /// MacOS-M1 总结：
 /// - print thread永远不会卡死 
-/// - 死循环只要在主线程中启动，都不会卡死
-/// - 死循环只要是在task中启动，就会卡死print task
+/// - 死循环task只要在主线程中启动，不会卡死print task
+/// - 死循环task只要是在task中启动，就会卡死print task
 async fn run_it() -> Result<()> {
 
-    let kick_type: KickType = "DeadTaskAndPrintTask".parse()?;
-    debug!("kick_type={:?}", kick_type);
+    let kick_type: KickType = "AllInTask".parse()?;
+    debug!("kick_type = {:?}", kick_type);
+    debug!("runtime threads = {:?}", async_rt::threads().len());
+    
+    // std::thread::spawn(||{
+    //     std::thread::sleep(Duration::from_secs(5));
+    //     for thread in async_rt::threads() {
+    //         unsafe { 
+    //             libc::pthread_kill(thread.os_id, signal_hook::consts::SIGUSR2);
+    //         }
+    //     }
+    // });
 
     match kick_type {
         KickType::AllInMain => {
@@ -89,16 +100,17 @@ async fn run_it() -> Result<()> {
         }
     }
 
-    tokio::time::sleep(Duration::from_secs(999999999)).await;
+    // waiting for ever
+    tokio::time::sleep(Duration::MAX).await;
     
     Ok(())
 }
 
 async fn kick_print() -> Result<()> {
-    for _ in 0..5 {
-        loop_util::kick_print_loop_task("120")?;
+    for _ in 0..10 {
+        loop_util::kick_print_loop_task("30")?;
     }
-    loop_util::kick_print_loop_thread("120")?;
+    loop_util::kick_print_loop_thread("30")?;
     Ok(())
 }
 

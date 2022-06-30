@@ -5,6 +5,12 @@ use tracing::error;
 use crate::monitor::rcpu;
 use super::{rcpu::SThreadCpuSnapshot, cond_pair::{CondFlag, CondFlagGuard}};
 
+#[macro_export]
+macro_rules! dbgm {
+    ($($arg:tt)* ) => (
+        // tracing::debug!($($arg)*)
+    );
+}
 
 
 pub trait CpuHandler {
@@ -208,7 +214,7 @@ where
 {
     fn handle(&mut self, threads: &Vec<SThreadCpuSnapshot>) -> Result<(Duration, Duration)> {
         self.check_thread_states(threads);
-        // debug!("handle: state {:?}, burnings {}, max {}", self.state, self.burnings.len(), self.curr_max);
+        dbgm!("handle: state {:?}, burnings {}, max {}", self.state, self.burnings.len(), self.curr_max);
         
         self.callback = false;
 
@@ -264,16 +270,16 @@ fn do_monitor_process_cpu(
 
     let (mut interval, mut duration) = handler.handle(&Vec::new())?;
     loop {
-        // debug!("waiting for interval {:?}", interval);
+        dbgm!("waiting for interval {:?}", interval);
         if cond.wait_for(interval) {
-            // debug!("detected end");
+            dbgm!("detected end");
             break;
         }
 
         let thread_stats = rcpu::get_process_thread_stats(&process)?;
-        // debug!("get cpu with duration {:?}, threads {}", duration, thread_stats.len());
+        dbgm!("get cpu with duration {:?}, threads {}", duration, thread_stats.len());
         if cond.wait_for(duration) {
-            // debug!("detected end");
+            dbgm!("detected end");
             break;
         }
 
@@ -298,4 +304,18 @@ fn do_monitor_process_cpu(
         // }
     }
     Result::<()>::Ok(())
+}
+
+pub fn spawn_burning_monitor<F>(pid: u32, threshold: f64, unit_interval: Duration, duration: Duration, func: F) -> Result<CondFlagGuard> 
+where
+    F: FnMut(&Vec<SThreadCpuSnapshot>) -> Result<()> + Send + 'static,
+{
+    let handler = Box::new(BuringThreadsMonitor::new(
+        threshold, 
+        unit_interval, 
+        duration, 
+        func,
+    ));
+
+    monitor_process_cpu(pid,  handler)
 }

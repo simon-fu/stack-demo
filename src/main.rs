@@ -1,14 +1,16 @@
 
 mod async_rt;
-mod loop_test;
 mod monitor;
+mod test_burning;
+mod test_loop;
 
 
-use std::time::Duration;
+
+
 use anyhow::Result;
-use tracing::debug;
+use strum_macros::EnumString;
 use tracing_subscriber::EnvFilter;
-use crate::monitor::rcpu::{self, SThreadCpuSnapshot};
+
 
 // #[tokio::main]
 // async fn main() -> Result<()> {
@@ -25,41 +27,7 @@ fn main() -> Result<()> {
     // let r = std::backtrace::Backtrace::capture();
     init_log();
 
-    {
-        // let pid = Option::<u32>::Some(10153);
-        let pid = Option::<u32>::None;
-        
-        let pid = match pid {
-            Some(v) => v,
-            None =>  {
-                build_some_threads();
-                std::process::id()
-            },
-        };
-        
-        let threshold = 96.0_f64;
-        let handler = Box::new(monitor::BuringThreadsMonitor::new(
-            threshold, 
-            Duration::from_secs(10), 
-            Duration::from_secs(3), 
-            move |states: &Vec<SThreadCpuSnapshot>| {
-                debug!("-----{}-----", rcpu::current_thread()?);
-                for state in states {
-                    println!(
-                        "  thread cpu usage: [{}]",
-                        state
-                    );
-                }
-                Ok(())
-            }
-        ));
-        let _monitor_guard = monitor::monitor_process_cpu(
-            pid, 
-            handler
-        )?;
-        std::thread::sleep(Duration::from_secs(99999));
-        println!("sleep done");
-    }
+    
 
 
     // #[cfg(any(target_os = "linux", target_os = "android"))]
@@ -99,27 +67,27 @@ fn main() -> Result<()> {
     //     // effect).
     // }
 
-    loop_test::run()?;
-
     // signal_hook::low_level::unregister(signal); // Not really necessary.
+
+    #[derive(Debug, PartialEq, EnumString)]
+    enum TestType {
+        Burning,
+        Loop,
+    }
+
+    let ttype: TestType = "Burning".parse()?;
+    match ttype {
+        TestType::Burning => test_burning::run()?,
+        TestType::Loop => test_loop::run()?,
+    }
+
     Ok(())
 }
 
 fn init_log() {
-
-    // tracing_subscriber::fmt()
-    // .with_env_filter(EnvFilter::new("debug,tokio=trace,runtime=trace"))
-    // .with_thread_ids(true)
-    // .init();
-    
-    // console_subscriber::init();
-
     use tracing_subscriber::prelude::*;
-
-    // let console_layer = console_subscriber::ConsoleLayer::builder().spawn();
-    
     tracing_subscriber::registry()
-        // .with(console_layer)
+        .with(console_subscriber::ConsoleLayer::builder().spawn())
         .with(
             tracing_subscriber::fmt::layer()
             // .with_env_filter(EnvFilter::new("debug,tokio=trace,runtime=trace"))
@@ -130,113 +98,7 @@ fn init_log() {
         .init();
 }
 
-fn build_some_threads() {
-    for _ in 0..5 {
-        std::thread::spawn(|| loop {
-            let _ = (0..9_000).into_iter().sum::<i128>();
-        });
-    }
-}
-mod cpu_util {
-    // use std::{time::Duration, sync::Arc};
 
-    // use anyhow::{Result, Context};
-    // use parking_lot::{Condvar, Mutex};
-
-
-    
-
-    // fn monitor_cpu_of_threads(pid: u32) -> Result<()> {        
-
-    //     loop {
-
-    //         let process = rcpu::get_process(pid)
-    //         .with_context(|| format!("unable to get info of pid [{}]", pid))?;
-
-    //         let r = print_process(&process);
-    //         if let Err(e) = r {
-    //             println!("{:?}", e);
-    //         }
-    //     }
-    // }
-
-    // fn print_process(process: &RProcess) -> Result<()> {
-    //     let mut thread_stats = rcpu::get_process_thread_stats(&process)?;
-        
-    //     {
-    //         const INTERVAL: Duration = Duration::from_secs(5);
-    //         std::thread::sleep(INTERVAL.clone());
-    //     }
-
-    //     println!("-----[{:?}]-----", rcpu::current_thread()?);
-    //     for (thd, stat_t) in &mut thread_stats {
-    //         let usage_t = stat_t.cpu().with_context(||format!("unable to get cpu of thread [{:?}]", thd))?;
-    //         if usage_t > 0.96 {
-    //             println!(
-    //                 "[CPU] thread usage: [{:?}] -> [{:.2}%]",
-    //                 thd, usage_t * 100f64
-    //             );
-    //         }
-    //     }
-
-    //     Ok(())
-    // }
-
-    
-
-    // fn run_monitor() -> Result<()> {
-    //     let core_num = processor_numbers().with_context(||"unable to get processor num")?;
-    //     let mut stat_p = ProcessStat::cur().with_context(||"unable to get process state")?;
-    //     let mut stat_t = ThreadStat::cur().with_context(||"unable to get thread state")?;
-
-    //     let mut last_loop = Instant::now();
-    //     loop {
-    //         if last_loop.elapsed() > Duration::from_secs(1) {
-    //             last_loop = Instant::now();
-    //         } else {
-    //             std::thread::sleep(Duration::from_micros(100));
-    //             continue;
-    //         }
-    //         println!("----------");
-
-    //         // cpu
-    //         let _ = (0..1_000).into_iter().sum::<i128>();
-
-    //         let usage_p = stat_p.cpu().with_context(||"unable to get process cpu")? * 100f64;
-    //         let usage_t = stat_t.cpu().with_context(||"unable to get thread cpu")? * 100f64;
-
-    //         println!(
-    //             "[CPU] core Number: {}, process usage: {:.2}%, current thread usage: {:.2}%",
-    //             core_num, usage_p, usage_t
-    //         );
-
-    //         // mem
-    //         let mem_info = get_process_memory_info().unwrap();
-
-    //         println!(
-    //             "[Memory] memory used: {} bytes, virtural memory used: {} bytes ",
-    //             mem_info.resident_set_size, mem_info.virtual_memory_size
-    //         );
-
-    //         // fd
-    //         let fd_num = fd_count_cur().unwrap();
-
-    //         println!("[FD] fd number: {}", fd_num);
-
-    //         // io
-    //         let io_stat = get_process_io_stats().unwrap();
-
-    //         println!(
-    //             "[IO] io-in: {} bytes, io-out: {} bytes",
-    //             io_stat.read_bytes, io_stat.write_bytes
-    //         );
-    //     }
-
-    //     // Result::<()>::Ok(())
-    // }
-
-
-}
 
 #[cfg(any(target_os = "linux", target_os = "android"))]
 mod linux {

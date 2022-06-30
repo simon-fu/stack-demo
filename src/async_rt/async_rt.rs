@@ -28,7 +28,7 @@ fn current_pid() -> libc::pthread_t {
 }
 
 pub(super) fn on_thread_start() {
-    println!("on_thread_start: pthread id [{:?}], thread id [{:?}]", current_pid(), std::thread::current().id());
+    // println!("on_thread_start: pthread id [{:?}], thread id [{:?}]", current_pid(), std::thread::current().id());
 
     RT_CTX.lock().threads.push(RThread {
         thread: std::thread::current(),

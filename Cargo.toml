@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "=1.18.0", features = ["full"] }
+# tokio = { version = "=1.19.2", features = ["full"] }
 console-subscriber = "0.1.6"
 
 anyhow = "=1.0.43"
@@ -36,3 +37,12 @@ minidump-writer = "0.2.1"
 crash-context = "0.3.1"
 crash-handler = "0.3.1"
 cfg-if = "1.0.0"
+
+# cpu负载
+perf_monitor = "=0.2.0"
+# 获取其他进程信息
+remoteprocess = "0.4.9"
+chrono = "=0.4.19"
+
+[target.'cfg(any(target_os = "linux", target_os = "android"))'.dependencies]
+nix = { version = "0.24", default-features = false, features = ["mman", "process", "ptrace", "user"] }

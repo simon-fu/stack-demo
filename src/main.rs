@@ -1,10 +1,14 @@
 
 mod async_rt;
 mod loop_test;
+mod monitor;
 
 
+use std::time::Duration;
 use anyhow::Result;
+use tracing::debug;
 use tracing_subscriber::EnvFilter;
+use crate::monitor::rcpu::{self, SThreadCpuSnapshot};
 
 // #[tokio::main]
 // async fn main() -> Result<()> {
@@ -21,9 +25,58 @@ fn main() -> Result<()> {
     // let r = std::backtrace::Backtrace::capture();
     init_log();
 
-    
+    {
+        // let pid = Option::<u32>::Some(10153);
+        let pid = Option::<u32>::None;
+        
+        let pid = match pid {
+            Some(v) => v,
+            None =>  {
+                build_some_threads();
+                std::process::id()
+            },
+        };
+        
+        let threshold = 96.0_f64;
+        let handler = Box::new(monitor::BuringThreadsMonitor::new(
+            threshold, 
+            Duration::from_secs(10), 
+            Duration::from_secs(3), 
+            move |states: &Vec<SThreadCpuSnapshot>| {
+                debug!("-----{}-----", rcpu::current_thread()?);
+                for state in states {
+                    println!(
+                        "  thread cpu usage: [{}]",
+                        state
+                    );
+                }
+                Ok(())
+            }
+        ));
+        let _monitor_guard = monitor::monitor_process_cpu(
+            pid, 
+            handler
+        )?;
+        std::thread::sleep(Duration::from_secs(99999));
+        println!("sleep done");
+    }
 
 
+    // #[cfg(any(target_os = "linux", target_os = "android"))]
+    // {
+    //     let pid = 13324;
+    //     let filename = "/tmp/dump.dmp";
+    //     let r = linux::dump_pid(pid, true, filename);
+    //     match r {
+    //         Ok(_r) => {
+    //             println!("dumped: pid=[{}], file=[{}]", pid, filename);
+    //             return Ok(())
+    //         },
+    //         Err(_) => {
+    //             r?;
+    //         }
+    //     }
+    // }
 
 
     // let signal = unsafe {
@@ -63,19 +116,201 @@ fn init_log() {
 
     use tracing_subscriber::prelude::*;
 
-    
-    // let console_layer = console_subscriber::spawn();
-    let console_layer = console_subscriber::ConsoleLayer::builder().spawn();
+    // let console_layer = console_subscriber::ConsoleLayer::builder().spawn();
     
     tracing_subscriber::registry()
-        .with(console_layer)
+        // .with(console_layer)
         .with(
             tracing_subscriber::fmt::layer()
             // .with_env_filter(EnvFilter::new("debug,tokio=trace,runtime=trace"))
+            .with_target(false)
             .with_thread_ids(true)
-            .with_filter(EnvFilter::new("debug"))
+            .with_filter(EnvFilter::new("debug,goblin=warn"))
         )
         .init();
+}
+
+fn build_some_threads() {
+    for _ in 0..5 {
+        std::thread::spawn(|| loop {
+            let _ = (0..9_000).into_iter().sum::<i128>();
+        });
+    }
+}
+mod cpu_util {
+    // use std::{time::Duration, sync::Arc};
+
+    // use anyhow::{Result, Context};
+    // use parking_lot::{Condvar, Mutex};
+
+
+    
+
+    // fn monitor_cpu_of_threads(pid: u32) -> Result<()> {        
+
+    //     loop {
+
+    //         let process = rcpu::get_process(pid)
+    //         .with_context(|| format!("unable to get info of pid [{}]", pid))?;
+
+    //         let r = print_process(&process);
+    //         if let Err(e) = r {
+    //             println!("{:?}", e);
+    //         }
+    //     }
+    // }
+
+    // fn print_process(process: &RProcess) -> Result<()> {
+    //     let mut thread_stats = rcpu::get_process_thread_stats(&process)?;
+        
+    //     {
+    //         const INTERVAL: Duration = Duration::from_secs(5);
+    //         std::thread::sleep(INTERVAL.clone());
+    //     }
+
+    //     println!("-----[{:?}]-----", rcpu::current_thread()?);
+    //     for (thd, stat_t) in &mut thread_stats {
+    //         let usage_t = stat_t.cpu().with_context(||format!("unable to get cpu of thread [{:?}]", thd))?;
+    //         if usage_t > 0.96 {
+    //             println!(
+    //                 "[CPU] thread usage: [{:?}] -> [{:.2}%]",
+    //                 thd, usage_t * 100f64
+    //             );
+    //         }
+    //     }
+
+    //     Ok(())
+    // }
+
+    
+
+    // fn run_monitor() -> Result<()> {
+    //     let core_num = processor_numbers().with_context(||"unable to get processor num")?;
+    //     let mut stat_p = ProcessStat::cur().with_context(||"unable to get process state")?;
+    //     let mut stat_t = ThreadStat::cur().with_context(||"unable to get thread state")?;
+
+    //     let mut last_loop = Instant::now();
+    //     loop {
+    //         if last_loop.elapsed() > Duration::from_secs(1) {
+    //             last_loop = Instant::now();
+    //         } else {
+    //             std::thread::sleep(Duration::from_micros(100));
+    //             continue;
+    //         }
+    //         println!("----------");
+
+    //         // cpu
+    //         let _ = (0..1_000).into_iter().sum::<i128>();
+
+    //         let usage_p = stat_p.cpu().with_context(||"unable to get process cpu")? * 100f64;
+    //         let usage_t = stat_t.cpu().with_context(||"unable to get thread cpu")? * 100f64;
+
+    //         println!(
+    //             "[CPU] core Number: {}, process usage: {:.2}%, current thread usage: {:.2}%",
+    //             core_num, usage_p, usage_t
+    //         );
+
+    //         // mem
+    //         let mem_info = get_process_memory_info().unwrap();
+
+    //         println!(
+    //             "[Memory] memory used: {} bytes, virtural memory used: {} bytes ",
+    //             mem_info.resident_set_size, mem_info.virtual_memory_size
+    //         );
+
+    //         // fd
+    //         let fd_num = fd_count_cur().unwrap();
+
+    //         println!("[FD] fd number: {}", fd_num);
+
+    //         // io
+    //         let io_stat = get_process_io_stats().unwrap();
+
+    //         println!(
+    //             "[IO] io-in: {} bytes, io-out: {} bytes",
+    //             io_stat.read_bytes, io_stat.write_bytes
+    //         );
+    //     }
+
+    //     // Result::<()>::Ok(())
+    // }
+
+
+}
+
+#[cfg(any(target_os = "linux", target_os = "android"))]
+mod linux {
+    use anyhow::{Result, Context};
+    use minidump_writer::{
+        minidump_writer::MinidumpWriter,
+        thread_info::Pid,
+        crash_context::CrashContext,
+    };
+    use nix::errno::Errno;
+
+    pub fn dump_pid(pid: Pid, with_ctx: bool, filename: &str) -> Result<()> {
+        do_dump_pid(filename, pid, with_ctx)
+        .with_context(||format!("fail to dump pid [{}], with_ctx [{}], file [{}], ", pid, with_ctx, filename))?;
+        let mut tmpfile = std::fs::File::create(filename)
+        .with_context(||format!("failed to create mdump file [{}]", filename))?;
+    
+        let mut tmp = MinidumpWriter::new(pid, pid);
+        #[cfg(not(any(target_arch = "mips", target_arch = "arm")))]
+        if with_ctx {
+            let crash_context = get_crash_context(pid);
+            tmp.set_crash_context(crash_context);
+        }
+
+        let _in_memory_buffer = tmp.dump(&mut tmpfile)
+        .with_context(||format!("failed to write mdump file [{}]", filename))?;
+
+        Ok(())
+    }
+
+    fn do_dump_pid(filename: &str, pid: Pid, with_ctx: bool) -> Result<()> {
+    
+        let mut tmpfile = std::fs::File::create(filename)
+        .with_context(||"failed to create mini dump file")?;
+    
+        let mut tmp = MinidumpWriter::new(pid, pid);
+        #[cfg(not(any(target_arch = "mips", target_arch = "arm")))]
+        if with_ctx {
+            let crash_context = get_crash_context(pid);
+            tmp.set_crash_context(crash_context);
+        }
+
+        let _in_memory_buffer = tmp.dump(&mut tmpfile)
+        .with_context(||format!("failed to write mini dump file"))?;
+
+        Ok(())
+    }
+
+    #[cfg(not(any(target_arch = "mips", target_arch = "arm")))]
+    fn get_ucontext() -> Result<crash_context::ucontext_t> {
+        let mut context = std::mem::MaybeUninit::uninit();
+        unsafe {
+            let res = crash_context::crash_context_getcontext(context.as_mut_ptr());
+            Errno::result(res)?;
+
+            Ok(context.assume_init())
+        }
+    }
+
+    #[cfg(not(any(target_arch = "mips", target_arch = "arm")))]
+    fn get_crash_context(tid: Pid) -> CrashContext {
+        let siginfo: libc::signalfd_siginfo = unsafe { std::mem::zeroed() };
+        let context = get_ucontext().expect("Failed to get ucontext");
+        let float_state = unsafe { std::mem::zeroed() };
+        CrashContext {
+            inner: crash_context::CrashContext {
+                siginfo,
+                pid: std::process::id() as _,
+                tid,
+                context,
+                float_state,
+            },
+        }
+    }
 
 }
 

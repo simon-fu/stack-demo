@@ -47,12 +47,7 @@ fn main() -> Result<()> {
     // }
 
 
-    // let signal = unsafe {
-    //     signal_hook::low_level::register(signal_hook::consts::SIGUSR2, || {
-    //         let backtrace = backtrace::Backtrace::new();
-    //         tracing::error!("backtrace {:?}", backtrace);
-    //     })
-    // }?;
+
 
 
     
@@ -67,7 +62,17 @@ fn main() -> Result<()> {
     //     // effect).
     // }
 
-    // signal_hook::low_level::unregister(signal); // Not really necessary.
+    let signal = unsafe {
+        signal_hook::low_level::register(signal_hook::consts::SIGUSR2, || {
+            tracing::error!("low_level signal");
+            // tracing::error!("backtrace {:?}", backtrace::Backtrace::new());
+        })
+    }?;
+
+    std::panic::set_hook(Box::new(move |panic_info| {
+        tracing::error!("panic: [{}]", panic_info);
+    }));
+
 
     #[derive(Debug, PartialEq, EnumString)]
     enum TestType {
@@ -75,11 +80,13 @@ fn main() -> Result<()> {
         Loop,
     }
 
-    let ttype: TestType = "Burning".parse()?;
+    let ttype: TestType = "Loop".parse()?;
     match ttype {
         TestType::Burning => test_burning::run()?,
         TestType::Loop => test_loop::run()?,
     }
+
+    signal_hook::low_level::unregister(signal); // Not really necessary.
 
     Ok(())
 }

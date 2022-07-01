@@ -48,14 +48,14 @@ async fn run_it() -> Result<()> {
     debug!("kick_type = {:?}", kick_type);
     debug!("runtime threads = {:?}", async_rt::threads().len());
     
-    // std::thread::spawn(||{
-    //     std::thread::sleep(Duration::from_secs(5));
-    //     for thread in async_rt::threads() {
-    //         unsafe { 
-    //             libc::pthread_kill(thread.os_id, signal_hook::consts::SIGUSR2);
-    //         }
-    //     }
-    // });
+    std::thread::spawn(||{
+        std::thread::sleep(Duration::from_secs(5));
+        for thread in async_rt::threads() {
+            unsafe { 
+                libc::pthread_kill(thread.os_id, signal_hook::consts::SIGUSR2);
+            }
+        }
+    });
 
     match kick_type {
         KickType::AllInMain => {

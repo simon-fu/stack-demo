@@ -13,7 +13,7 @@ pub struct ROsThread {
 
 impl std::fmt::Debug for ROsThread {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RThread").field("tid", &self.tid).field("name", &self.name).finish()
+        f.debug_struct("ROsThread").field("tid", &self.tid).field("name", &self.name).finish()
     }
 }
 
@@ -58,7 +58,7 @@ impl SThreadCpu {
 
 impl std::fmt::Debug for SThreadCpuSnapshot {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("RThreadCpu").field("thread", &self.thread).field("cpu", &self.cpu).finish()
+        f.debug_struct("SThreadCpuSnapshot").field("thread", &self.thread).field("cpu", &self.cpu).finish()
     }
 }
 
